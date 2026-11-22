@@ -1,0 +1,21 @@
+# Terraform working directories, state, plans, and local configuration.
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfvars
+*.tfvars.json
+*.auto.tfvars
+backend.hcl
+crash.log
+crash.*.log
+.terraformrc
+terraform.rc
+
+# Keep example configuration and commit generated .terraform.lock.hcl files.
+!*.example
+
+# Local credentials and environment files.
+.aws/
+.env
+.env.*
