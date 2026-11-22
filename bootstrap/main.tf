@@ -10,12 +10,12 @@ terraform {
 }
 
 variable "aws_region" {
-  description = "AWS region for the Terraform state bucket."
+  description = "AWS region for the Terraform state bucket"
   type        = string
 }
 
 variable "state_bucket_name" {
-  description = "Globally unique S3 bucket name for Terraform state."
+  description = "Globally unique S3 bucket name for Terraform state"
   type        = string
 }
 
@@ -75,7 +75,7 @@ resource "aws_s3_bucket_policy" "terraform_state" {
       Effect    = "Deny"
       Principal = "*"
       Action    = "s3:*"
-      Resource  = [
+      Resource = [
         aws_s3_bucket.terraform_state.arn,
         "${aws_s3_bucket.terraform_state.arn}/*"
       ]

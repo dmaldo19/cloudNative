@@ -1,3 +1,8 @@
-aws_region   = "us-east-1"
-project_name = "cloud-native-exercise"
-environment  = "dev"
+aws_region        = "us-east-1"
+project_name      = "cloud-native-exercise"
+environment       = "dev"
+availability_zone = "us-east-1a"
+
+# Creates public 10.20.0.0/24, outbound 10.20.1.0/24, and isolated 10.20.2.0/24
+vpc_cidr       = "10.20.0.0/16"
+subnet_newbits = 8
