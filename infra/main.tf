@@ -6,3 +6,15 @@ module "network" {
   vpc_cidr          = var.vpc_cidr
   subnet_newbits    = var.subnet_newbits
 }
+
+module "development" {
+  source = "./modules/development"
+
+  name_prefix       = "${var.project_name}-${var.environment}"
+  vpc_id            = module.network.vpc_id
+  subnet_id         = module.network.outbound_subnet_id
+  instance_type     = var.development_instance_type
+  ami_id            = var.development_ami_id
+  home_volume_size  = var.development_home_volume_size
+  terraform_version = var.development_terraform_version
+}

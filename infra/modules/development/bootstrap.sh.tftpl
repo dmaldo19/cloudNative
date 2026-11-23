@@ -1,0 +1,122 @@
+#!/bin/bash
+set -Eeuo pipefail
+umask 022
+exec > >(tee -a /var/log/developer-bootstrap.log /dev/console) 2>&1
+trap 'rc=$?; echo "Developer bootstrap failed at line $LINENO (exit $rc)"; exit "$rc"' ERR
+
+rm -f /run/developer-bootstrap.ready
+echo "Starting developer bootstrap at $(date --iso-8601=seconds)"
+expected_serial='${replace(home_volume_id, "-", "")}'
+terraform_version='${terraform_version}'
+device=''
+
+# Nitro exposes the EBS volume ID as the NVMe serial
+for attempt in $(seq 1 150); do
+  udevadm settle --timeout=2 || true
+  device=$(lsblk -dnpo NAME,SERIAL | awk -v serial="$expected_serial" '$2 == serial {print $1}')
+  if [ -n "$device" ] && [ -b "$device" ]; then
+    break
+  fi
+  sleep 2
+done
+if [ -z "$device" ] || [ ! -b "$device" ]; then
+  echo "Expected EBS volume ${home_volume_id} did not appear within the attachment timeout."
+  exit 1
+fi
+
+# Reject partitioned disks and unknown signatures instead of destroying existing data
+if [ "$(lsblk -nro TYPE "$device")" != disk ]; then
+  echo "Expected one unpartitioned home disk: $device"
+  exit 1
+fi
+signatures=$(wipefs --no-act --noheadings --output TYPE "$device")
+if [ -z "$signatures" ]; then
+  mkfs.ext4 -m 0 "$device"
+elif [ "$(blkid -s TYPE -o value "$device")" != ext4 ]; then
+  echo "Refusing to format a home disk with an existing non-ext4 signature"
+  exit 1
+fi
+
+uuid=$(blkid -s UUID -o value "$device")
+test -n "$uuid"
+fstab_entry="UUID=$uuid /home/developer ext4 defaults,nofail,x-systemd.device-timeout=120 0 2"
+if grep -Eq '^[^#]+[[:space:]]/home/developer[[:space:]]' /etc/fstab; then
+  grep -Fxq "$fstab_entry" /etc/fstab
+else
+  printf '%s\n' "$fstab_entry" >> /etc/fstab
+fi
+mkdir -p /home/developer
+systemctl daemon-reload
+if ! mountpoint -q /home/developer; then
+  if findmnt -rn -S "UUID=$uuid" >/dev/null; then
+    echo "The home filesystem is already mounted elsewhere so refusing a second mount"
+    exit 1
+  fi
+  mount /home/developer
+fi
+test "$(findmnt -nro UUID --target /home/developer)" = "$uuid"
+# Grow ext4 after an optional EBS size increase
+resize2fs "$device"
+
+# Stable IDs preserve ownership when a new instance reattaches the home volume
+if ! getent group developer >/dev/null; then
+  groupadd --gid 2000 developer
+fi
+if ! id developer >/dev/null 2>&1; then
+  useradd --uid 2000 --gid developer --no-create-home --home-dir /home/developer --shell /bin/bash developer
+fi
+test "$(id -u developer)" = 2000
+test "$(id -g developer)" = 2000
+test "$(getent passwd developer | cut -d: -f6)" = /home/developer
+chown developer:developer /home/developer
+chmod 0750 /home/developer
+runuser -u developer -- cp -rn /etc/skel/. /home/developer/
+
+mkdir -p /var/lib/developer-bootstrap
+if [ ! -f /var/lib/developer-bootstrap/tools-installed ]; then
+  # Use the AL2023 repository snapshotS
+  dnf install -y git docker python3 python3-pip curl-minimal vim-minimal awscli-2 unzip e2fsprogs amazon-ssm-agent
+
+  agent_version=$(rpm -q --qf '%{VERSION}' amazon-ssm-agent)
+  test "$(printf '%s\n' 3.3.40.0 "$agent_version" | sort -V | head -n 1)" = 3.3.40.0
+
+  # Verify the official release archive signature before installing Terraform
+  work_dir=$(mktemp -d)
+  (
+    cd "$work_dir"
+    base_url="https://releases.hashicorp.com/terraform/$terraform_version"
+    archive="terraform_$${terraform_version}_linux_amd64.zip"
+    sums="terraform_$${terraform_version}_SHA256SUMS"
+    curl --fail --silent --show-error --location --retry 5 --connect-timeout 15 --max-time 300 -O "$base_url/$archive"
+    curl --fail --silent --show-error --location --retry 5 --connect-timeout 15 --max-time 300 -O "$base_url/$sums"
+    awk -v archive="$archive" '$2 == archive {print}' "$sums" > archive.sha256
+    test "$(wc -l < archive.sha256)" = 1
+    sha256sum --check archive.sha256
+    unzip -q "$archive" terraform
+    install -m 0755 terraform /usr/local/bin/terraform
+  )
+  rm -rf -- "$work_dir"
+
+  # Docker group membership and passwordless sudo intentionally grant local admin access
+  usermod --append --groups docker developer
+  printf '%s\n' 'developer ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/developer
+  chmod 0440 /etc/sudoers.d/developer
+  visudo -cf /etc/sudoers.d/developer
+  systemctl disable --now sshd.service
+  touch /var/lib/developer-bootstrap/tools-installed
+fi
+
+systemctl enable --now docker.service amazon-ssm-agent.service
+systemctl is-active --quiet docker.service
+systemctl is-active --quiet amazon-ssm-agent.service
+{
+  git --version
+  docker --version
+  python3 --version
+  curl --version
+  vi --version
+  aws --version
+  terraform version
+} > /var/lib/developer-bootstrap/tool-versions.txt
+touch /run/developer-bootstrap.ready
+echo "Developer bootstrap completed at $(date --iso-8601=seconds)"

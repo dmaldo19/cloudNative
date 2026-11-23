@@ -1,6 +1,9 @@
 terraform {
   required_version = ">= 1.10.0, < 2.0.0"
 
+  # Select a different local state path per account when initializing the bootstrap
+  backend "local" {}
+
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -14,13 +17,24 @@ variable "aws_region" {
   type        = string
 }
 
+variable "aws_account_id" {
+  description = "Expected target account ID for the one-time backend bootstrap"
+  type        = string
+
+  validation {
+    condition     = can(regex("^[0-9]{12}$", var.aws_account_id))
+    error_message = "Provide the expected AWS account ID."
+  }
+}
+
 variable "state_bucket_name" {
   description = "Globally unique S3 bucket name for Terraform state"
   type        = string
 }
 
 provider "aws" {
-  region = var.aws_region
+  region              = var.aws_region
+  allowed_account_ids = [var.aws_account_id]
 
   default_tags {
     tags = {
