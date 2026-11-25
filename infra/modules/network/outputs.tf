@@ -17,3 +17,8 @@ output "isolated_subnet_id" {
 
   depends_on = [aws_route_table_association.isolated]
 }
+
+output "isolated_route_table_id" {
+  description = "Isolated route table for the private S3 gateway endpoint"
+  value       = aws_route_table.isolated.id
+}

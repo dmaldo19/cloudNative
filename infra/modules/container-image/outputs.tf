@@ -7,3 +7,8 @@ output "repository_name" {
   description = "Private ECR repository name."
   value       = aws_ecr_repository.application.name
 }
+
+output "repository_arn" {
+  description = "Repository ARN for scoped task execution and endpoint permissions"
+  value       = aws_ecr_repository.application.arn
+}

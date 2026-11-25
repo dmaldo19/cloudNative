@@ -25,3 +25,15 @@ module "application_image" {
   name_prefix   = "${var.project_name}-${var.environment}"
   build_context = abspath("${path.module}/../app")
 }
+
+module "application" {
+  source = "./modules/application"
+
+  name_prefix                   = "${var.project_name}-${var.environment}"
+  vpc_id                        = module.network.vpc_id
+  isolated_subnet_id            = module.network.isolated_subnet_id
+  isolated_route_table_id       = module.network.isolated_route_table_id
+  development_security_group_id = module.development.security_group_id
+  image_uri                     = module.application_image.image_uri
+  repository_arn                = module.application_image.repository_arn
+}

@@ -32,11 +32,16 @@ output "development_human_session_policy" {
 }
 
 output "application_image_uri" {
-  description = "published ecr digest reference for a future Linux X86_64 ecs task on port 8080"
+  description = "Published immutable ECR image reference used by the Linux application"
   value       = module.application_image.image_uri
 }
 
 output "application_repository_name" {
   description = "private ecr repository name for image inspection and cleanup"
   value       = module.application_image.repository_name
+}
+
+output "application" {
+  description = "Private application details for connectivity checks and deployment diagnostics"
+  value       = module.application.details
 }
