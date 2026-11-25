@@ -18,3 +18,10 @@ module "development" {
   home_volume_size  = var.development_home_volume_size
   terraform_version = var.development_terraform_version
 }
+
+module "application_image" {
+  source = "./modules/container-image"
+
+  name_prefix   = "${var.project_name}-${var.environment}"
+  build_context = abspath("${path.module}/../app")
+}

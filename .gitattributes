@@ -1,2 +1,5 @@
 # Keep Linux bootstrap templates executable after a Windows checkout
 *.tftpl text eol=lf
+
+# Keep build-context hashes consistent across Windows and Linux checkouts
+app/** text eol=lf
