@@ -77,7 +77,7 @@ if [ ! -f /var/lib/developer-bootstrap/tools-installed ]; then
   # Use the AL2023 repository snapshotS
   dnf install -y git docker python3 python3-pip curl-minimal vim-minimal awscli-2 unzip e2fsprogs amazon-ssm-agent
 
-  agent_version=$(rpm -q --qf '%{VERSION}' amazon-ssm-agent)
+  agent_version=$(rpm -q --qf '%%{VERSION}' amazon-ssm-agent)
   test "$(printf '%s\n' 3.3.40.0 "$agent_version" | sort -V | head -n 1)" = 3.3.40.0
 
   # Verify the official release archive signature before installing Terraform

@@ -136,7 +136,7 @@ resource "aws_instance" "development" {
         path        = "/usr/local/sbin/developer-bootstrap"
         permissions = "0755"
         owner       = "root:root"
-        content     = templatefile("${path.module}/bootstrap.sh.tftpl", {
+        content = templatefile("${path.module}/bootstrap.sh.tftpl", {
           home_volume_id    = aws_ebs_volume.home.id
           terraform_version = var.terraform_version
         })
