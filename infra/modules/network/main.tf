@@ -81,6 +81,7 @@ resource "aws_route_table" "public" {
   }
 }
 
+# For sources that don't have a more specific route, use the internet gateway
 resource "aws_route" "public_internet" {
   route_table_id         = aws_route_table.public.id
   destination_cidr_block = "0.0.0.0/0"
@@ -88,6 +89,7 @@ resource "aws_route" "public_internet" {
 }
 
 resource "aws_route_table_association" "public" {
+  # The NAT is added to the subnet in the following line
   subnet_id      = aws_subnet.public.id
   route_table_id = aws_route_table.public.id
 }
